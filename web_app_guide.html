@@ -547,6 +547,84 @@ okt = <span class="cls">Okt</span>()</div>
   </div>
 
 
+  <!-- ======================= 라즈베리파이 배포 ======================= -->
+  <div class="card">
+    <p class="card-title">🍓 라즈베리파이에서 실행하기 (Gunicorn)</p>
+
+    <div class="analogy" style="margin-bottom:14px;">
+      Flask 내장 서버(<code>python web_app.py</code>)는 개발·테스트용이에요. 실제 서비스에선 <b>Gunicorn</b>을 써야 해요. Gunicorn은 여러 요청을 동시에 처리할 수 있는 전문 웹 서버예요. 마치 혼자 일하는 알바생(Flask)과 여러 직원을 관리하는 매니저(Gunicorn)의 차이예요.
+    </div>
+
+    <h3>환경 정보</h3>
+    <table>
+      <tr><th>항목</th><th>내용</th></tr>
+      <tr><td>하드웨어</td><td>Raspberry Pi 4 (4GB RAM)</td></tr>
+      <tr><td>운영체제</td><td>Ubuntu Server 22.04 LTS (64-bit)</td></tr>
+      <tr><td>라즈베리파이 IP</td><td>10.10.59.22</td></tr>
+      <tr><td>접속 포트</td><td>5000</td></tr>
+    </table>
+
+    <h3>① 필수 패키지 설치</h3>
+    <div class="code-block"><span class="cm"># Java 포함 (KoNLPy 실행에 필수)</span>
+sudo apt update
+sudo apt install python3-pip python3-venv default-jdk -y</div>
+
+    <h3>② 가상환경 생성 및 패키지 설치</h3>
+    <div class="code-block">cd ~/Project_Skincare_Recommendation
+python3 -m venv .venv
+source .venv/bin/activate
+
+pip install flask konlpy scikit-learn scipy pandas numpy gunicorn</div>
+
+    <h3>③ web_app.py 설정 확인</h3>
+    <div class="explain">
+      외부에서 접속하려면 <code>host='0.0.0.0'</code> 이 반드시 있어야 해요.<br>
+      <code>debug=False</code>는 실서비스에서 보안상 필수예요.
+    </div>
+    <div class="code-block"><span class="kw">if</span> __name__ == <span class="str">'__main__'</span>:
+    app.<span class="fn">run</span>(host=<span class="str">'0.0.0.0'</span>, port=<span class="num">5000</span>, debug=<span class="kw">False</span>)</div>
+
+    <h3>④ Gunicorn으로 서버 실행</h3>
+    <div class="code-block"><span class="cm"># 반드시 프로젝트 폴더 안에서 실행!</span>
+cd ~/Project_Skincare_Recommendation
+source .venv/bin/activate
+gunicorn -w 2 -b 0.0.0.0:5000 web_app:app</div>
+
+    <table>
+      <tr><th>옵션</th><th>의미</th></tr>
+      <tr><td>-w 2</td><td>워커(직원) 2개로 동시 요청 처리</td></tr>
+      <tr><td>-b 0.0.0.0:5000</td><td>모든 네트워크에서 5000번 포트로 접속 허용</td></tr>
+      <tr><td>web_app:app</td><td>web_app.py 파일의 app 객체를 실행</td></tr>
+    </table>
+
+    <h3>⑤ 같은 네트워크에서 접속</h3>
+    <div class="code-block">http://10.10.59.22:5000</div>
+    <div class="explain">
+      같은 공유기(WiFi 또는 유선랜)에 연결된 기기라면 위 주소로 접속할 수 있어요.<br>
+      외부(다른 장소)에서 접속하려면 공유기 포트포워딩 설정이 추가로 필요해요.
+    </div>
+
+    <h3>⑥ 속도 관련 참고사항</h3>
+    <table>
+      <tr><th>상황</th><th>예상 응답 시간</th><th>이유</th></tr>
+      <tr><td>첫 번째 추천 요청</td><td>5~15초</td><td>KoNLPy JVM(자바) 초기화 시간</td></tr>
+      <tr><td>두 번째 요청부터</td><td>1~3초</td><td>JVM 이미 올라와 있어서 빠름</td></tr>
+    </table>
+
+    <h3>⑦ 코드 업데이트 방법</h3>
+    <div class="code-block"><span class="cm"># PC에서 코드 수정 후 GitHub에 올리기</span>
+git push
+
+<span class="cm"># 라즈베리파이에서 최신 코드 받기</span>
+cd ~/Project_Skincare_Recommendation
+git pull
+
+<span class="cm"># 서버 재시작</span>
+<span class="cm"># Ctrl+C로 기존 gunicorn 종료 후 다시 실행</span>
+gunicorn -w 2 -b 0.0.0.0:5000 web_app:app</div>
+  </div>
+
+
   <div style="text-align:center; color:#AAA; font-size:13px; padding-bottom:20px;">
     web_app.py 코드 설명서 · AI 피부 메이크업 추천 프로젝트
   </div>
