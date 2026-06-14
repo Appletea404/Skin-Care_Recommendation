@@ -516,29 +516,34 @@ def build_response(row, user_input, gender, age, skin_type):
     if rec_ing_text != "nan":
         search_terms.extend(okt.nouns(rec_ing_text))
     
-    # 중복 제거 및 필터링 (품사/길이/의미 기반)
+    # 중복 제거 및 필터링
     search_terms = [t for t in list(dict.fromkeys(search_terms)) 
-                    if len(t) >= 2 and t not in stopwords and t not in ['피부', '추출물', '사용', '도움', '성분', '부분', '제품']]
+                    if len(t) >= 2 and t not in stopwords and t not in ['피부', '추출물', '사용', '도움', '성분', '부분', '제품', '요철']]
     
     matched_links = []
     seen_links = set()
     
     for keyword in search_terms[:4]:
-        # 1. 제품명/브랜드 검색 (정확도 최우선)
-        matches = df_product_list[
-            df_product_list['product_name'].str.contains(keyword, case=False, na=False) |
-            df_product_list['product_brand'].str.contains(keyword, case=False, na=False)
+        # 1. 제품명/브랜드 검색 (단어 파편 매칭 방지를 위해 정규표현식 활용)
+        # 키워드가 단어의 시작이거나 공백 뒤에 오는 경우만 매칭 (예: '시카'는 '시카크림'에 매칭되나 '클래식카'에는 매칭 안됨)
+        pattern = fr'(^|\s|[^\uAC00-\uD7A3]){re.escape(keyword)}'
+        
+        name_matches = df_product_list[
+            df_product_list['product_name'].str.contains(pattern, case=False, na=False, regex=True) |
+            df_product_list['product_brand'].str.contains(pattern, case=False, na=False, regex=True)
         ].head(2)
         
-        for _, m in matches.iterrows():
+        for _, m in name_matches.iterrows():
             if m['product_link'] not in seen_links:
                 matched_links.append({'brand': m['product_brand'], 'name': m['product_name'], 'link': m['product_link']})
                 seen_links.add(m['product_link'])
         
-        # 2. 리뷰 검색 (Proxy) - 💡 오탐 방지를 위해 'cleaned_review'에서 검색
+        # 2. 리뷰 검색 (Proxy) - 💡 토큰 단위로 정확히 일치하는지 검사 (라우 != 클라우드)
         if df_reviews is not None:
-            # 텍스트 파편 매칭 방지를 위해 앞뒤 공백을 고려하거나 정제된 리뷰 필드 활용
-            r_matches = df_reviews[df_reviews['cleaned_review'].str.contains(keyword, na=False)].head(1)
+            # 정제된 리뷰(공백 구분 단어들) 내에서 정확히 해당 단어 토큰이 존재하는지 확인
+            token_pattern = fr'(^|\s){re.escape(keyword)}(\s|$)'
+            r_matches = df_reviews[df_reviews['cleaned_review'].str.contains(token_pattern, na=False, regex=True)].head(1)
+            
             for _, rm in r_matches.iterrows():
                 p_info = df_product_list[df_product_list['product_name'] == rm['product_name']].head(1)
                 if not p_info.empty and p_info.iloc[0]['product_link'] not in seen_links:
