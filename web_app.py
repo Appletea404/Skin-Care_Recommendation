@@ -266,14 +266,36 @@ def preprocess_input(text):
 def select_expert_row(user_input, cleaned, gender, age, skin_type):
     """Apply the v4_rebuild score: TF-IDF similarity plus 0.05 per profile match."""
     similarities = linear_kernel(tfidf.transform([cleaned]), tfidf_matrix)[0]
-    profile_bonus = np.zeros(len(df_skin))
+    THRESHOLD = 0.20  # 유의미한 유사도 최솟값
+
+    def best_in_mask(mask):
+        s = similarities.copy()
+        s[~mask] = -1
+        idx = int(s.argmax())
+        return idx, s[idx]
+
+    # 1단계: 프로필 전체 일치
+    mask = np.ones(len(df_skin), dtype=bool)
     if gender != '성별 선택':
-        profile_bonus += df_skin['Gender'].eq(gender).to_numpy() * 0.05
+        mask &= df_skin['Gender'].eq(gender).to_numpy()
     if age != '연령대 선택':
-        profile_bonus += df_skin['Age'].eq(age).to_numpy() * 0.05
+        mask &= df_skin['Age'].eq(age).to_numpy()
     if skin_type != '피부 타입 선택':
-        profile_bonus += df_skin['Skin Type'].eq(skin_type).to_numpy() * 0.05
-    return df_skin.iloc[int((similarities + profile_bonus).argmax())]
+        mask &= df_skin['Skin Type'].eq(skin_type).to_numpy()
+    idx, score = best_in_mask(mask)
+    if score >= THRESHOLD:
+        return df_skin.iloc[idx]
+
+    # 2단계: 성별만 일치 (나이·피부타입 완화)
+    mask2 = np.ones(len(df_skin), dtype=bool)
+    if gender != '성별 선택':
+        mask2 &= df_skin['Gender'].eq(gender).to_numpy()
+    idx, score = best_in_mask(mask2)
+    if score >= THRESHOLD:
+        return df_skin.iloc[idx]
+
+    # 3단계: 전체에서 최고 유사도
+    return df_skin.iloc[int(similarities.argmax())]
 
 
 def validated_profile_value(field, value):

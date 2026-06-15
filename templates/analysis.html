@@ -194,11 +194,30 @@
 
       <div id="ingredient-guide" class="ingredient-visual-grid">
         <article class="ingredient-feature recommend">
-          <div class="ingredient-art good-art" aria-hidden="true"><span class="art-circle"></span><span class="botanical botanical-one"></span><span class="botanical botanical-two"></span><div class="art-drop">+</div></div>
+          <div class="ingredient-art good-art" aria-hidden="true">
+            <div class="ingr-icon-wrap">
+              <div class="ingr-icon-bg good-bg">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/>
+                  <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/>
+                </svg>
+              </div>
+            </div>
+          </div>
           <div class="ingredient-copy"><p>GOOD FOR YOUR SKIN</p><h3>주목하면 좋은 성분</h3><div id="rec-text" class="ingredient-value"></div><small>제품 전성분표에서 해당 성분을 확인해 보세요.</small></div>
         </article>
         <article class="ingredient-feature avoid">
-          <div class="ingredient-art caution-art" aria-hidden="true"><span class="art-circle"></span><span class="caution-line"></span><div class="art-drop">!</div></div>
+          <div class="ingredient-art caution-art" aria-hidden="true">
+            <div class="ingr-icon-wrap">
+              <div class="ingr-icon-bg caution-bg">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                  <line x1="12" y1="8" x2="12" y2="12"/>
+                  <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+              </div>
+            </div>
+          </div>
           <div class="ingredient-copy"><p>USE WITH CAUTION</p><h3>사용 전 확인할 성분</h3><div id="avoid-text" class="ingredient-value"></div><small>피부 반응에는 개인차가 있으므로 패치 테스트를 권장합니다.</small></div>
         </article>
       </div>
@@ -562,7 +581,19 @@
         card.append(term, value);
         metricBox.appendChild(card);
       });
-      document.getElementById('matched-question').textContent = basis.matched_question;
+      const matchedQEl = document.getElementById('matched-question');
+      matchedQEl.textContent = (basis.matched_question || '').replace(/^\d+대\s*(이상\s*)?(여성|남성)으로\s*/,'');
+      const prevNote = matchedQEl.nextElementSibling;
+      if (prevNote && prevNote.classList.contains('matched-profile-note')) prevNote.remove();
+      const sel = basis.selected_profile || {};
+      const mat = basis.matched_profile || {};
+      const profileDiffers = Object.keys(sel).some(function (k) { return sel[k] !== mat[k]; });
+      if (profileDiffers) {
+        const note = document.createElement('small');
+        note.className = 'matched-profile-note';
+        note.textContent = '※ 선택 프로필(' + Object.values(sel).join(' · ') + ')과 일치하는 데이터가 부족하여 유사 사례(' + Object.values(mat).join(' · ') + ') 기반으로 가이드를 구성했습니다.';
+        matchedQEl.insertAdjacentElement('afterend', note);
+      }
     }
 
     function renderDetailedGuide(data) {
@@ -640,11 +671,9 @@
       const sentences = data.response.match(/[^.!?。]+[.!?。]?/g) || [data.response];
       document.getElementById('summary-text').textContent = sentences.slice(0, 2).join(' ').trim();
       const tags = [];
-      if (type !== '정상') tags.push(type);
       ['건조', '각질', '민감', '홍조', '트러블', '여드름', '모공', '유분'].forEach(function (term) {
         if (keyword.includes(term) && !tags.includes(term)) tags.push(term);
       });
-      tags.push('추천 성분 ' + data.rec_ingredients);
       const tagBox = document.getElementById('concern-tags');
       tagBox.replaceChildren();
       tags.slice(0, 4).forEach(function (tag) {
